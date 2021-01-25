@@ -25,8 +25,6 @@ const inputElevation = document.querySelector(".form__input--elevation");
 
 const formRow = document.querySelectorAll(".form__row");
 
-let workoutArray = [];
-
 class Workout {
   date = new Intl.DateTimeFormat("en-US", {
     month: "long",
@@ -67,6 +65,7 @@ class Cycling extends Workout {
 class App {
   #map;
   #mapEvent;
+  workoutArray = [];
   constructor() {
     this._getPosition();
     form.addEventListener("submit", this._newWorkout.bind(this)); // this = DOM element, fix it by using bind method
@@ -86,7 +85,7 @@ class App {
     const { latitude } = position.coords;
     const { longitude } = position.coords;
     console.log(latitude, longitude);
-    console.log(`https://www.google.com/maps/@${latitude},${longitude}`);
+
     const coords = [latitude, longitude];
 
     this.#map = L.map("map").setView(coords, 13);
@@ -121,78 +120,83 @@ class App {
     const type = inputType.value;
     const distance = +inputDistance.value; // + convert string to number
     const duration = +inputDuration.value;
+    const cadence = +inputCadence.value;
+    const elevationGain = +inputElevation.value;
 
-    // validate
-    function validateInput(num1, num2, num3) {
-      if (
-        typeof num1 !== "number" ||
-        typeof num2 !== "number" ||
-        typeof num3 !== "number"
-      ) {
-        return alert("Inputs have to be positive numbers");
-      }
+    let workout;
+
+    // check input
+
+    function isAllFinite(...nums) {
+      const allFinite = nums.every((num) => Number.isFinite(num));
+      return allFinite;
+    }
+    function isAllPositive(...nums) {
+      const allPositive = nums.every((num) => num > 0);
+      return allPositive;
     }
     // type : running
 
     if (type === "running") {
-      const cadence = +inputCadence.value;
-      if (distance < 0 || duration < 0 || cadence < 0) {
-        return alert("input must be always a positive number");
+      if (
+        !isAllFinite(distance, duration, cadence) ||
+        !isAllPositive(distance, duration, cadence)
+      ) {
+        return alert("Inputs must be always positive numbers");
       }
-      validateInput(distance, duration, cadence);
     }
 
     // type : cycling
 
     if (type === "cycling") {
-      const elevationGain = +inputElevation.value;
-      if (distance < 0 || duration < 0 || elevationGain < 0) {
-        return alert("input must be always a positive number");
+      if (
+        !isAllFinite(distance, duration, elevationGain) ||
+        !isAllPositive(distance, duration)
+      ) {
+        return alert("Inputs must be always positive numbers");
       }
-      validateInput(distance, duration, elevationGain);
     }
 
-    const activity = type === "running" ? "🏃‍♂️ Running" : "🚴‍♀️ Cycling";
-    const classActivity =
-      type === "running" ? "workout--running" : "workout--cycling";
+    if (
+      type === "running" &&
+      isAllFinite(distance, duration, cadence) &&
+      isAllPositive(distance, duration, cadence)
+    ) {
+      // display marker
 
-    // display marker
-    const { lat, lng } = this.#mapEvent.latlng;
-    L.marker([lat, lng])
-      .addTo(this.#map)
-      .bindPopup(
-        L.popup({
-          maxWidth: 250,
-          minWidth: 100,
-          autoClose: false,
-          closeOnClick: false,
-          className: `${classActivity}`,
-        })
-      )
-      .setPopupContent(
-        `${activity} on ${new Intl.DateTimeFormat("en-US", {
-          month: "long",
-          day: "numeric",
-        }).format(new Date())}`
-      )
-      .openPopup();
+      const activity = type === "running" ? "🏃‍♂️ Running" : "🚴‍♀️ Cycling";
+      const classActivity =
+        type === "running" ? "workout--running" : "workout--cycling";
 
-    const workout = new Workout(inputDistance.value, inputDuration.value, [
-      lat,
-      lng,
-    ]);
+      const { lat, lng } = this.#mapEvent.latlng;
+      L.marker([lat, lng])
+        .addTo(this.#map)
+        .bindPopup(
+          L.popup({
+            maxWidth: 250,
+            minWidth: 100,
+            autoClose: false,
+            closeOnClick: false,
+            className: `${classActivity}`,
+          })
+        )
+        .setPopupContent(
+          `${activity} on ${new Intl.DateTimeFormat("en-US", {
+            month: "long",
+            day: "numeric",
+          }).format(new Date())}`
+        )
+        .openPopup();
 
-    console.log(workout);
-    if (type === "running") {
-      let run = new Running(
-        workout.distance,
-        workout.duration,
-        workout.coords,
-        inputCadence.value
-      );
-      workoutArray.push(run);
+      // const workout = new Workout(inputDistance.value, inputDuration.value, [
+      //   lat,
+      //   lng,
+      // ]);
+
+      workout = new Running(distance, duration, [lat, lng], cadence);
+
       const workoutSummary = `<li class="workout workout--running" data-id= ${
-        run.id
+        workout.id
       }>
       <h2 class="workout__title">${activity} on ${new Intl.DateTimeFormat(
         "en-US",
@@ -203,38 +207,72 @@ class App {
       ).format(new Date())}</h2>
       <div class="workout__details">
         <span class="workout__icon">🏃‍♂️</span>
-        <span class="workout__value">${run.distance}</span>
+        <span class="workout__value">${workout.distance}</span>
         <span class="workout__unit">km</span>
       </div>
       <div class="workout__details">
         <span class="workout__icon">⏱</span>
-        <span class="workout__value">${run.duration}</span>
+        <span class="workout__value">${workout.duration}</span>
         <span class="workout__unit">min</span>
       </div>
       <div class="workout__details">
         <span class="workout__icon">⚡️</span>
-        <span class="workout__value">${run.pace}</span>
+        <span class="workout__value">${workout.pace}</span>
         <span class="workout__unit">min/km</span>
       </div>
       <div class="workout__details">
         <span class="workout__icon">🦶🏼</span>
-        <span class="workout__value">${run.cadence}</span>
+        <span class="workout__value">${workout.cadence}</span>
         <span class="workout__unit">spm</span>
       </div>
     </li>`;
 
       form.insertAdjacentHTML("afterend", workoutSummary);
+      form.classList.add("hidden");
     }
-    if (type === "cycling") {
-      let cyc = new Cycling(
-        workout.distance,
-        workout.duration,
-        workout.coords,
-        inputElevation.value
-      );
-      workoutArray.push(cyc);
+
+    if (
+      type === "cycling" &&
+      isAllFinite(distance, duration, elevationGain) &&
+      isAllPositive(distance, duration)
+    ) {
+      // display marker
+
+      const activity = type === "running" ? "🏃‍♂️ Running" : "🚴‍♀️ Cycling";
+      const classActivity =
+        type === "running" ? "workout--running" : "workout--cycling";
+
+      const { lat, lng } = this.#mapEvent.latlng;
+      L.marker([lat, lng])
+        .addTo(this.#map)
+        .bindPopup(
+          L.popup({
+            maxWidth: 250,
+            minWidth: 100,
+            autoClose: false,
+            closeOnClick: false,
+            className: `${classActivity}`,
+          })
+        )
+        .setPopupContent(
+          `${activity} on ${new Intl.DateTimeFormat("en-US", {
+            month: "long",
+            day: "numeric",
+          }).format(new Date())}`
+        )
+        .openPopup();
+
+      // const workout = new Workout(inputDistance.value, inputDuration.value, [
+      //   lat,
+      //   lng,
+      // ]);
+
+      // console.log(workout);
+
+      workout = new Cycling(distance, duration, [lat, lng], elevationGain);
+
       const workoutSummary = `<li class="workout workout--cycling" data-id= ${
-        cyc.id
+        workout.id
       }>
       <h2 class="workout__title">${activity} on ${new Intl.DateTimeFormat(
         "en-US",
@@ -245,31 +283,34 @@ class App {
       ).format(new Date())}</h2>
       <div class="workout__details">
         <span class="workout__icon">🚴‍♀️</span>
-        <span class="workout__value">${cyc.distance}</span>
+        <span class="workout__value">${workout.distance}</span>
         <span class="workout__unit">km</span>
       </div>
       <div class="workout__details">
         <span class="workout__icon">⏱</span>
-        <span class="workout__value">${cyc.duration}</span>
+        <span class="workout__value">${workout.duration}</span>
         <span class="workout__unit">min</span>
       </div>
       <div class="workout__details">
         <span class="workout__icon">⚡️</span>
-        <span class="workout__value">${cyc.speed}</span>
+        <span class="workout__value">${workout.speed}</span>
         <span class="workout__unit">min/km</span>
       </div>
       <div class="workout__details">
         <span class="workout__icon">⛰</span>
-        <span class="workout__value">${cyc.elevationGain}</span>
+        <span class="workout__value">${workout.elevationGain}</span>
         <span class="workout__unit">spm</span>
       </div>
     </li>`;
 
       form.insertAdjacentHTML("afterend", workoutSummary);
+      form.classList.add("hidden");
     }
 
+    this.workoutArray.push(workout);
+
     // hide form and clear input fields
-    form.classList.add("hidden");
+
     inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value =
       "";
   }
