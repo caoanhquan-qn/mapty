@@ -29,6 +29,7 @@ class Workout {
   }
 }
 class Running extends Workout {
+  category = "running";
   constructor(distance, duration, coords, cadence) {
     super(distance, duration, coords);
     this.cadence = cadence;
@@ -40,6 +41,7 @@ class Running extends Workout {
   }
 }
 class Cycling extends Workout {
+  category = "cycling";
   constructor(distance, duration, coords, elevationGain) {
     super(distance, duration, coords);
     this.elevationGain = elevationGain;
@@ -56,10 +58,16 @@ class App {
   #mapEvent;
   workoutArray = [];
   constructor() {
+    // get user's position
     this._getPosition();
+
+    // add event handlers
     form.addEventListener("submit", this._newWorkout.bind(this)); // this = DOM element, fix it by using bind method
     inputType.addEventListener("input", this._toggleElevationField.bind(this));
     containerWorkouts.addEventListener("click", this._moveMap.bind(this));
+
+    // get data from local storage
+    this._getLocalStorage();
   }
   _getPosition() {
     if (navigator.geolocation) {
@@ -74,7 +82,7 @@ class App {
   _loadMap(position) {
     const { latitude } = position.coords;
     const { longitude } = position.coords;
-    console.log(latitude, longitude);
+    // console.log(latitude, longitude);
 
     const coords = [latitude, longitude];
 
@@ -113,6 +121,9 @@ class App {
     const cadence = +inputCadence.value;
     const elevationGain = +inputElevation.value;
 
+    const { lat, lng } = this.#mapEvent.latlng;
+    const coords = [lat, lng];
+
     let workout;
 
     // check input
@@ -134,6 +145,9 @@ class App {
       ) {
         return alert("Inputs must be always positive numbers");
       }
+      // const { lat, lng } = this.#mapEvent.latlng;
+      // const coords = [lat, lng];
+      workout = new Running(distance, duration, coords, cadence);
     }
 
     // type : cycling
@@ -145,21 +159,62 @@ class App {
       ) {
         return alert("Inputs must be always positive numbers");
       }
+      // const { lat, lng } = this.#mapEvent.latlng;
+      // const coords = [lat, lng];
+      workout = new Cycling(distance, duration, coords, elevationGain);
     }
 
-    if (
-      type === "running" &&
-      isAllFinite(distance, duration, cadence) &&
-      isAllPositive(distance, duration, cadence)
-    ) {
+    // render data
+
+    this._renderData(workout);
+
+    // hide form and clear input fields
+
+    form.classList.add("hidden");
+    inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value =
+      "";
+
+    // set local storage to all workouts
+    this._setLocalStorage();
+  }
+
+  // move to marker on click
+  _moveMap(event) {
+    const item = event.target.closest("li");
+    if (item) {
+      const itemId = Number(item.dataset.id);
+      this.workoutArray.forEach((workout) => {
+        if (workout.id === itemId) {
+          const [lat, lng] = workout.coords;
+          this.#map.flyTo([lat, lng]);
+        }
+      });
+    } else {
+      return;
+    }
+  }
+  _setLocalStorage() {
+    localStorage.setItem("workouts", JSON.stringify(this.workoutArray));
+  }
+  _getLocalStorage() {
+    const data = JSON.parse(localStorage.getItem("workouts"));
+    // console.log(data);
+  }
+  _renderData(workout) {
+    if (workout.category === "running") {
       // display marker
 
-      const activity = type === "running" ? "🏃‍♂️ Running" : "🚴‍♀️ Cycling";
+      const activity =
+        workout.category === "running" ? "🏃‍♂️ Running" : "🚴‍♀️ Cycling";
       const classActivity =
-        type === "running" ? "workout--running" : "workout--cycling";
+        workout.category === "running"
+          ? "workout--running"
+          : "workout--cycling";
 
-      const { lat, lng } = this.#mapEvent.latlng;
-      L.marker([lat, lng])
+      // const { lat, lng } = this.#mapEvent.latlng;
+      // workout.coords = [lat, lng];
+
+      L.marker(workout.coords)
         .addTo(this.#map)
         .bindPopup(
           L.popup({
@@ -177,8 +232,6 @@ class App {
           }).format(new Date())}`
         )
         .openPopup();
-
-      workout = new Running(distance, duration, [lat, lng], cadence);
 
       const workoutSummary = `<li class="workout workout--running" data-id= ${
         workout.id
@@ -217,19 +270,20 @@ class App {
       form.insertAdjacentHTML("afterend", workoutSummary);
     }
 
-    if (
-      type === "cycling" &&
-      isAllFinite(distance, duration, elevationGain) &&
-      isAllPositive(distance, duration)
-    ) {
+    if (workout.category === "cycling") {
       // display marker
 
-      const activity = type === "running" ? "🏃‍♂️ Running" : "🚴‍♀️ Cycling";
+      const activity =
+        workout.category === "running" ? "🏃‍♂️ Running" : "🚴‍♀️ Cycling";
       const classActivity =
-        type === "running" ? "workout--running" : "workout--cycling";
+        workout.category === "running"
+          ? "workout--running"
+          : "workout--cycling";
 
-      const { lat, lng } = this.#mapEvent.latlng;
-      L.marker([lat, lng])
+      // const { lat, lng } = this.#mapEvent.latlng;
+      // workout.coords = [lat, lng];
+
+      L.marker(workout.coords)
         .addTo(this.#map)
         .bindPopup(
           L.popup({
@@ -247,8 +301,6 @@ class App {
           }).format(new Date())}`
         )
         .openPopup();
-
-      workout = new Cycling(distance, duration, [lat, lng], elevationGain);
 
       const workoutSummary = `<li class="workout workout--cycling" data-id= ${
         workout.id
@@ -286,28 +338,6 @@ class App {
     }
 
     this.workoutArray.push(workout);
-
-    // hide form and clear input fields
-
-    form.classList.add("hidden");
-    inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value =
-      "";
-  }
-
-  // move to marker on click
-  _moveMap(event) {
-    const item = event.target.closest("li");
-    if (item) {
-      const itemId = Number(item.dataset.id);
-      this.workoutArray.forEach((workout) => {
-        if (workout.id === itemId) {
-          const [lat, lng] = workout.coords;
-          this.#map.flyTo([lat, lng]);
-        }
-      });
-    } else {
-      return;
-    }
   }
 }
 const app = new App();
