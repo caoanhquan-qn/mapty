@@ -1,19 +1,8 @@
 "use strict";
 
-const months = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+// => tell prettier extension to ignore the next line
+// prettier-ignore
+const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const form = document.querySelector(".form");
 const containerWorkouts = document.querySelector(".workouts");
@@ -46,7 +35,7 @@ class Running extends Workout {
     this.calcPace();
   }
   calcPace() {
-    this.pace = this.duration / this.distance; // in min/km
+    this.pace = (this.duration / this.distance).toFixed(1); // in min/km
     return this.pace;
   }
 }
@@ -70,6 +59,7 @@ class App {
     this._getPosition();
     form.addEventListener("submit", this._newWorkout.bind(this)); // this = DOM element, fix it by using bind method
     inputType.addEventListener("input", this._toggleElevationField.bind(this));
+    containerWorkouts.addEventListener("click", this._moveMap.bind(this));
   }
   _getPosition() {
     if (navigator.geolocation) {
@@ -188,11 +178,6 @@ class App {
         )
         .openPopup();
 
-      // const workout = new Workout(inputDistance.value, inputDuration.value, [
-      //   lat,
-      //   lng,
-      // ]);
-
       workout = new Running(distance, duration, [lat, lng], cadence);
 
       const workoutSummary = `<li class="workout workout--running" data-id= ${
@@ -227,8 +212,9 @@ class App {
       </div>
     </li>`;
 
+      // spm = steps per minute
+
       form.insertAdjacentHTML("afterend", workoutSummary);
-      form.classList.add("hidden");
     }
 
     if (
@@ -262,13 +248,6 @@ class App {
         )
         .openPopup();
 
-      // const workout = new Workout(inputDistance.value, inputDuration.value, [
-      //   lat,
-      //   lng,
-      // ]);
-
-      // console.log(workout);
-
       workout = new Cycling(distance, duration, [lat, lng], elevationGain);
 
       const workoutSummary = `<li class="workout workout--cycling" data-id= ${
@@ -294,25 +273,41 @@ class App {
       <div class="workout__details">
         <span class="workout__icon">⚡️</span>
         <span class="workout__value">${workout.speed}</span>
-        <span class="workout__unit">min/km</span>
+        <span class="workout__unit">km/h</span>
       </div>
       <div class="workout__details">
         <span class="workout__icon">⛰</span>
         <span class="workout__value">${workout.elevationGain}</span>
-        <span class="workout__unit">spm</span>
+        <span class="workout__unit">m</span>
       </div>
     </li>`;
 
       form.insertAdjacentHTML("afterend", workoutSummary);
-      form.classList.add("hidden");
     }
 
     this.workoutArray.push(workout);
 
     // hide form and clear input fields
 
+    form.classList.add("hidden");
     inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value =
       "";
+  }
+
+  // move to marker on click
+  _moveMap(event) {
+    const item = event.target.closest("li");
+    if (item) {
+      const itemId = Number(item.dataset.id);
+      this.workoutArray.forEach((workout) => {
+        if (workout.id === itemId) {
+          const [lat, lng] = workout.coords;
+          this.#map.flyTo([lat, lng]);
+        }
+      });
+    } else {
+      return;
+    }
   }
 }
 const app = new App();
