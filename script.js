@@ -65,9 +65,6 @@ class App {
     form.addEventListener("submit", this._newWorkout.bind(this)); // this = DOM element, fix it by using bind method
     inputType.addEventListener("input", this._toggleElevationField.bind(this));
     containerWorkouts.addEventListener("click", this._moveMap.bind(this));
-
-    // get data from local storage
-    this._getLocalStorage();
   }
   _getPosition() {
     if (navigator.geolocation) {
@@ -82,7 +79,6 @@ class App {
   _loadMap(position) {
     const { latitude } = position.coords;
     const { longitude } = position.coords;
-    // console.log(latitude, longitude);
 
     const coords = [latitude, longitude];
 
@@ -92,6 +88,10 @@ class App {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(this.#map);
+
+    // get data from local storage
+
+    this._getLocalStorage();
 
     this.#map.on("click", this._showForm.bind(this));
   }
@@ -145,8 +145,7 @@ class App {
       ) {
         return alert("Inputs must be always positive numbers");
       }
-      // const { lat, lng } = this.#mapEvent.latlng;
-      // const coords = [lat, lng];
+
       workout = new Running(distance, duration, coords, cadence);
     }
 
@@ -159,8 +158,7 @@ class App {
       ) {
         return alert("Inputs must be always positive numbers");
       }
-      // const { lat, lng } = this.#mapEvent.latlng;
-      // const coords = [lat, lng];
+
       workout = new Cycling(distance, duration, coords, elevationGain);
     }
 
@@ -198,7 +196,12 @@ class App {
   }
   _getLocalStorage() {
     const data = JSON.parse(localStorage.getItem("workouts"));
-    // console.log(data);
+
+    if (!data) return;
+
+    data.forEach((item) => {
+      this._renderData(item);
+    });
   }
   _renderData(workout) {
     if (workout.category === "running") {
@@ -210,9 +213,6 @@ class App {
         workout.category === "running"
           ? "workout--running"
           : "workout--cycling";
-
-      // const { lat, lng } = this.#mapEvent.latlng;
-      // workout.coords = [lat, lng];
 
       L.marker(workout.coords)
         .addTo(this.#map)
@@ -280,9 +280,6 @@ class App {
           ? "workout--running"
           : "workout--cycling";
 
-      // const { lat, lng } = this.#mapEvent.latlng;
-      // workout.coords = [lat, lng];
-
       L.marker(workout.coords)
         .addTo(this.#map)
         .bindPopup(
@@ -338,6 +335,10 @@ class App {
     }
 
     this.workoutArray.push(workout);
+  }
+  reset() {
+    localStorage.removeItem("workouts");
+    location.reload();
   }
 }
 const app = new App();
